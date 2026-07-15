@@ -24,4 +24,9 @@ describe("parseResetPasswordLink", () => {
   it("returns null for a malformed url", () => {
     expect(parseResetPasswordLink("not-a-url")).toBeNull()
   })
+
+  it("falls back to query string when hash fragment lacks valid recovery tokens", () => {
+    const url = "https://voltia-fitness.com/reset-password#foo=bar?access_token=abc123&refresh_token=xyz789&type=recovery"
+    expect(parseResetPasswordLink(url)).toEqual({ accessToken: "abc123", refreshToken: "xyz789" })
+  })
 })
