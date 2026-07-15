@@ -31,27 +31,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [membershipBlocked, setMembershipBlocked] = useState(false)
 
-  async function applySession(nextSession: Session | null) {
+  async function applySession(nextSession: Session | null, isMounted: () => boolean) {
     if (!nextSession) {
-      setSession(null)
-      setMembershipBlocked(false)
+      if (isMounted()) {
+        setSession(null)
+        setMembershipBlocked(false)
+      }
       return
     }
 
     const blocked = await checkMembership(nextSession.user.id)
     if (blocked) {
       await supabase.auth.signOut()
-      setSession(null)
-      setMembershipBlocked(true)
+      if (isMounted()) {
+        setSession(null)
+        setMembershipBlocked(true)
+      }
       return
     }
 
-    setMembershipBlocked(false)
-    setSession(nextSession)
+    if (isMounted()) {
+      setMembershipBlocked(false)
+      setSession(nextSession)
+    }
   }
 
   useEffect(() => {
-    let isMounted = true
+    let mounted = true
+    const isMounted = () => mounted
 
     async function bootstrap() {
       const { data } = await supabase.auth.getSession()
@@ -62,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (biometricEnabled) {
           const authenticated = await authenticateWithBiometrics()
           if (!authenticated) {
-            if (isMounted) {
+            if (isMounted()) {
               setSession(null)
               setLoading(false)
             }
@@ -71,18 +78,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      await applySession(storedSession)
-      if (isMounted) setLoading(false)
+      await applySession(storedSession, isMounted)
+      if (isMounted()) setLoading(false)
     }
 
     bootstrap()
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      applySession(nextSession)
+      applySession(nextSession, isMounted)
     })
 
     return () => {
-      isMounted = false
+      mounted = false
       listener.subscription.unsubscribe()
     }
   }, [])
@@ -96,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut()
     setSession(null)
+    setMembershipBlocked(false)
   }
 
   return (
