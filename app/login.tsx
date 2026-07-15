@@ -1,0 +1,83 @@
+import React, { useState } from "react"
+import { View, TextInput, Text, Pressable, StyleSheet } from "react-native"
+import { router } from "expo-router"
+import { useAuth } from "../lib/auth/AuthContext"
+import { supabase } from "../lib/supabase/client"
+import { colors } from "../constants/theme"
+
+export default function LoginScreen() {
+  const { signIn } = useAuth()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit() {
+    setError(null)
+    setLoading(true)
+    const result = await signIn(email, password)
+    setLoading(false)
+
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+
+    router.replace("/")
+  }
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setError("Ingresá tu email para recuperar la contraseña")
+      return
+    }
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://voltia-fitness.com/reset-password",
+    })
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>GymFlow</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        placeholderTextColor={colors.textMuted}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Contraseña"
+        placeholderTextColor={colors.textMuted}
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+
+      {error && <Text style={styles.error}>{error}</Text>}
+
+      <Pressable style={styles.button} onPress={handleSubmit} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? "Ingresando..." : "Iniciar sesión"}</Text>
+      </Pressable>
+
+      <Pressable onPress={handleForgotPassword}>
+        <Text style={styles.link}>Olvidé mi contraseña</Text>
+      </Pressable>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background, justifyContent: "center", padding: 24, gap: 16 },
+  title: { color: colors.brand, fontSize: 32, fontFamily: "Anton_400Regular", textAlign: "center", marginBottom: 24 },
+  input: { borderWidth: 1, borderColor: "#333", borderRadius: 8, padding: 12, color: colors.text },
+  button: { backgroundColor: colors.brand, borderRadius: 8, padding: 14, alignItems: "center" },
+  buttonText: { color: colors.text, fontWeight: "600" },
+  error: { color: colors.error, textAlign: "center" },
+  link: { color: colors.textMuted, textAlign: "center", marginTop: 8 },
+})
