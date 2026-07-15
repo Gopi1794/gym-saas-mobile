@@ -13,15 +13,19 @@ export async function setBiometricPreference(enabled: boolean): Promise<void> {
 }
 
 export async function authenticateWithBiometrics(): Promise<boolean> {
-  const hasHardware = await LocalAuthentication.hasHardwareAsync()
-  if (!hasHardware) return false
+  try {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync()
+    if (!hasHardware) return false
 
-  const isEnrolled = await LocalAuthentication.isEnrolledAsync()
-  if (!isEnrolled) return false
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+    if (!isEnrolled) return false
 
-  const result = await LocalAuthentication.authenticateAsync({
-    promptMessage: "Confirmá tu identidad para continuar",
-  })
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Confirmá tu identidad para continuar",
+    })
 
-  return result.success
+    return result.success
+  } catch {
+    return false
+  }
 }

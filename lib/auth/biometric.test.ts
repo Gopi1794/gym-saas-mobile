@@ -59,4 +59,28 @@ describe("authenticateWithBiometrics", () => {
     ;(LocalAuthentication.authenticateAsync as jest.Mock).mockResolvedValue({ success: false })
     expect(await authenticateWithBiometrics()).toBe(false)
   })
+
+  it("returns false when hasHardwareAsync throws", async () => {
+    ;(LocalAuthentication.hasHardwareAsync as jest.Mock).mockRejectedValue(
+      new Error("Native layer error")
+    )
+    expect(await authenticateWithBiometrics()).toBe(false)
+  })
+
+  it("returns false when isEnrolledAsync throws", async () => {
+    ;(LocalAuthentication.hasHardwareAsync as jest.Mock).mockResolvedValue(true)
+    ;(LocalAuthentication.isEnrolledAsync as jest.Mock).mockRejectedValue(
+      new Error("Native layer error")
+    )
+    expect(await authenticateWithBiometrics()).toBe(false)
+  })
+
+  it("returns false when authenticateAsync throws", async () => {
+    ;(LocalAuthentication.hasHardwareAsync as jest.Mock).mockResolvedValue(true)
+    ;(LocalAuthentication.isEnrolledAsync as jest.Mock).mockResolvedValue(true)
+    ;(LocalAuthentication.authenticateAsync as jest.Mock).mockRejectedValue(
+      new Error("Native layer error")
+    )
+    expect(await authenticateWithBiometrics()).toBe(false)
+  })
 })
