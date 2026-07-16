@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (biometricEnabled) {
           const authenticated = await authenticateWithBiometrics()
           if (!authenticated) {
+            await supabase.auth.signOut()
             if (isMounted()) {
               setSession(null)
               setLoading(false)

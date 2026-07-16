@@ -104,6 +104,7 @@ describe("AuthProvider", () => {
       expect(parsed.loading).toBe(false)
       expect(parsed.hasSession).toBe(false)
     })
+    expect(supabase.auth.signOut).toHaveBeenCalled()
   })
 
   it("marks membershipBlocked true for an expired member profile", async () => {
