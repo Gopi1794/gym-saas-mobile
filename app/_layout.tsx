@@ -25,7 +25,7 @@ function Gate({ children }: { children: React.ReactNode }) {
     }
 
     if (!session) {
-      if (currentRoute !== "login") {
+      if (currentRoute !== "login" && currentRoute !== "reset-password") {
         router.replace("/login")
       }
       return
