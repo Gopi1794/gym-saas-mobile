@@ -3,7 +3,7 @@ import { View, TextInput, Text, Pressable, StyleSheet } from "react-native"
 import { router } from "expo-router"
 import { useAuth } from "../lib/auth/AuthContext"
 import { supabase } from "../lib/supabase/client"
-import { colors } from "../constants/theme"
+import { colors, fonts } from "../constants/theme"
 
 export default function LoginScreen() {
   const { signIn } = useAuth()
@@ -55,6 +55,7 @@ export default function LoginScreen() {
         placeholder="Contraseña"
         placeholderTextColor={colors.textMuted}
         secureTextEntry
+        autoCapitalize="none"
         value={password}
         onChangeText={setPassword}
       />
@@ -74,10 +75,10 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, justifyContent: "center", padding: 24, gap: 16 },
-  title: { color: colors.brand, fontSize: 32, fontFamily: "Anton_400Regular", textAlign: "center", marginBottom: 24 },
-  input: { borderWidth: 1, borderColor: "#333", borderRadius: 8, padding: 12, color: colors.text },
+  title: { color: colors.brand, fontSize: 32, fontFamily: fonts.heading, textAlign: "center", marginBottom: 24 },
+  input: { borderWidth: 1, borderColor: "#333", borderRadius: 8, padding: 12, color: colors.text, fontFamily: fonts.body },
   button: { backgroundColor: colors.brand, borderRadius: 8, padding: 14, alignItems: "center" },
-  buttonText: { color: colors.text, fontWeight: "600" },
-  error: { color: colors.error, textAlign: "center" },
-  link: { color: colors.textMuted, textAlign: "center", marginTop: 8 },
+  buttonText: { color: colors.text, fontWeight: "600", fontFamily: fonts.body },
+  error: { color: colors.error, textAlign: "center", fontFamily: fonts.body },
+  link: { color: colors.textMuted, textAlign: "center", marginTop: 8, fontFamily: fonts.body },
 })
