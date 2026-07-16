@@ -1,9 +1,10 @@
 import React, { useState } from "react"
-import { View, TextInput, Text, Pressable, StyleSheet } from "react-native"
+import { View, TextInput, Text, Pressable, StyleSheet, Alert } from "react-native"
 import { router } from "expo-router"
 import { useAuth } from "../lib/auth/AuthContext"
 import { supabase } from "../lib/supabase/client"
 import { colors, fonts } from "../constants/theme"
+import { getBiometricPreference, setBiometricPreference } from "../lib/auth/biometric"
 
 export default function LoginScreen() {
   const { signIn } = useAuth()
@@ -21,6 +22,30 @@ export default function LoginScreen() {
     if (result.error) {
       setError(result.error)
       return
+    }
+
+    const biometricAlreadyEnabled = await getBiometricPreference()
+    if (!biometricAlreadyEnabled) {
+      await new Promise<void>((resolve) => {
+        Alert.alert(
+          "¿Activar Face ID / huella?",
+          "Podés usarlo para tu próximo acceso.",
+          [
+            {
+              text: "No, gracias",
+              style: "cancel",
+              onPress: () => resolve(),
+            },
+            {
+              text: "Activar",
+              onPress: async () => {
+                await setBiometricPreference(true)
+                resolve()
+              },
+            },
+          ]
+        )
+      })
     }
 
     router.replace("/")

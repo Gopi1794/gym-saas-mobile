@@ -1,10 +1,17 @@
 import React from "react"
 import { render, fireEvent, waitFor } from "@testing-library/react-native"
+import { Alert } from "react-native"
 import LoginScreen from "./login"
 import { useAuth } from "../lib/auth/AuthContext"
+import { getBiometricPreference, setBiometricPreference } from "../lib/auth/biometric"
 
 jest.mock("../lib/auth/AuthContext", () => ({
   useAuth: jest.fn(),
+}))
+
+jest.mock("../lib/auth/biometric", () => ({
+  getBiometricPreference: jest.fn(),
+  setBiometricPreference: jest.fn(),
 }))
 
 jest.mock("expo-router", () => ({
@@ -22,7 +29,11 @@ jest.mock("../lib/supabase/client", () => ({
 }))
 
 describe("LoginScreen", () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
+    jest.spyOn(Alert, "alert").mockImplementation(() => {})
+  })
 
   it("calls signIn with the entered email and password", async () => {
     const signIn = jest.fn().mockResolvedValue({ error: null })
@@ -69,5 +80,64 @@ describe("LoginScreen", () => {
 
     expect(getByText("Ingresando...")).toBeTruthy()
     resolveSignIn({ error: null })
+  })
+
+  it("prompts to enable biometrics after a successful login when not already enabled", async () => {
+    const signIn = jest.fn().mockResolvedValue({ error: null })
+    ;(useAuth as jest.Mock).mockReturnValue({ signIn })
+    ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
+
+    const { getByPlaceholderText, getByText } = render(<LoginScreen />)
+
+    fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    fireEvent.press(getByText("Iniciar sesión"))
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "¿Activar Face ID / huella?",
+        "Podés usarlo para tu próximo acceso.",
+        expect.any(Array)
+      )
+    })
+  })
+
+  it("calls setBiometricPreference(true) when the user accepts the prompt", async () => {
+    const signIn = jest.fn().mockResolvedValue({ error: null })
+    ;(useAuth as jest.Mock).mockReturnValue({ signIn })
+    ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
+
+    const { getByPlaceholderText, getByText } = render(<LoginScreen />)
+
+    fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    fireEvent.press(getByText("Iniciar sesión"))
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalled())
+
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2]
+    const activateButton = buttons.find((b: { text: string }) => b.text === "Activar")
+
+    await activateButton.onPress()
+
+    expect(setBiometricPreference).toHaveBeenCalledWith(true)
+  })
+
+  it("does not prompt to enable biometrics when already enabled", async () => {
+    const signIn = jest.fn().mockResolvedValue({ error: null })
+    ;(useAuth as jest.Mock).mockReturnValue({ signIn })
+    ;(getBiometricPreference as jest.Mock).mockResolvedValue(true)
+
+    const { getByPlaceholderText, getByText } = render(<LoginScreen />)
+
+    fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    fireEvent.press(getByText("Iniciar sesión"))
+
+    await waitFor(() => {
+      expect(getBiometricPreference).toHaveBeenCalled()
+    })
+
+    expect(Alert.alert).not.toHaveBeenCalled()
   })
 })
