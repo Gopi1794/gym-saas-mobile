@@ -55,4 +55,21 @@ describe("ResetPasswordScreen", () => {
     expect(await findByText("Link inválido o vencido")).toBeTruthy()
     expect(supabase.auth.setSession).not.toHaveBeenCalled()
   })
+
+  it("shows an error and does not call updateUser when setSession fails with an expired link", async () => {
+    ;(Linking.useURL as jest.Mock).mockReturnValue(
+      "gymflowmember://reset-password?access_token=expired&refresh_token=expired&type=recovery"
+    )
+    ;(supabase.auth.setSession as jest.Mock).mockResolvedValueOnce({
+      error: { message: "Invalid or expired token" },
+    })
+
+    const { getByPlaceholderText, getByText, findByText } = render(<ResetPasswordScreen />)
+
+    fireEvent.changeText(getByPlaceholderText("Nueva contraseña"), "nuevaClaveSegura123")
+    fireEvent.press(getByText("Guardar nueva contraseña"))
+
+    expect(await findByText("Link inválido o vencido")).toBeTruthy()
+    expect(supabase.auth.updateUser).not.toHaveBeenCalled()
+  })
 })

@@ -23,10 +23,16 @@ export default function ResetPasswordScreen() {
     setSaving(true)
     setError(null)
 
-    await supabase.auth.setSession({
+    const { error: sessionError } = await supabase.auth.setSession({
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,
     })
+
+    if (sessionError) {
+      setError("Link inválido o vencido")
+      setSaving(false)
+      return
+    }
 
     const { error: updateError } = await supabase.auth.updateUser({ password })
     setSaving(false)
