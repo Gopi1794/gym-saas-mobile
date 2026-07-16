@@ -1,9 +1,16 @@
-import { View, Text } from "react-native"
+import React from "react"
+import { View, Text, StyleSheet } from "react-native"
+import { colors } from "../constants/theme"
 
-export default function Index() {
+export default function HomeStub() {
   return (
-    <View>
-      <Text>gym-saas-mobile scaffold OK</Text>
+    <View style={styles.container}>
+      <Text style={styles.text}>Sesión iniciada. Home real fuera de alcance de este plan.</Text>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background, justifyContent: "center", padding: 24 },
+  text: { color: colors.text, textAlign: "center" },
+})
