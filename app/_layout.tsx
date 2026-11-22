@@ -25,12 +25,14 @@ function Gate({ children }: { children: React.ReactNode }) {
     }
 
     if (!session) {
-      if (currentRoute !== "login" && currentRoute !== "reset-password") {
+      if (currentRoute !== "login" && currentRoute !== "forgot-password") {
         router.replace("/login")
       }
       return
     }
 
+    // forgot-password is intentionally not redirected: verifyOtp creates a
+    // session mid-flow and the screen finishes the password update itself.
     if (currentRoute === "login" || currentRoute === "membership-expired") {
       router.replace("/")
     }

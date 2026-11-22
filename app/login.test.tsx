@@ -2,6 +2,7 @@ import React from "react"
 import { render, fireEvent, waitFor } from "@testing-library/react-native"
 import { Alert } from "react-native"
 import LoginScreen from "./login"
+import { router } from "expo-router"
 import { useAuth } from "../lib/auth/AuthContext"
 import { getBiometricPreference, setBiometricPreference } from "../lib/auth/biometric"
 
@@ -17,14 +18,7 @@ jest.mock("../lib/auth/biometric", () => ({
 jest.mock("expo-router", () => ({
   router: {
     replace: jest.fn(),
-  },
-}))
-
-jest.mock("../lib/supabase/client", () => ({
-  supabase: {
-    auth: {
-      resetPasswordForEmail: jest.fn(),
-    },
+    push: jest.fn(),
   },
 }))
 
@@ -139,5 +133,14 @@ describe("LoginScreen", () => {
     })
 
     expect(Alert.alert).not.toHaveBeenCalled()
+  })
+
+  it("navigates to the forgot-password screen without calling supabase", () => {
+    ;(useAuth as jest.Mock).mockReturnValue({ signIn: jest.fn() })
+
+    const { getByText } = render(<LoginScreen />)
+    fireEvent.press(getByText("Olvidé mi contraseña"))
+
+    expect(router.push).toHaveBeenCalledWith("/forgot-password")
   })
 })

@@ -2,7 +2,6 @@ import React, { useState } from "react"
 import { View, TextInput, Text, Pressable, StyleSheet, Alert } from "react-native"
 import { router } from "expo-router"
 import { useAuth } from "../lib/auth/AuthContext"
-import { supabase } from "../lib/supabase/client"
 import { colors, fonts } from "../constants/theme"
 import { getBiometricPreference, setBiometricPreference } from "../lib/auth/biometric"
 
@@ -51,16 +50,6 @@ export default function LoginScreen() {
     router.replace("/")
   }
 
-  async function handleForgotPassword() {
-    if (!email) {
-      setError("Ingresá tu email para recuperar la contraseña")
-      return
-    }
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://voltia-fitness.com/reset-password",
-    })
-  }
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Voltia</Text>
@@ -91,7 +80,7 @@ export default function LoginScreen() {
         <Text style={styles.buttonText}>{loading ? "Ingresando..." : "Iniciar sesión"}</Text>
       </Pressable>
 
-      <Pressable onPress={handleForgotPassword}>
+      <Pressable onPress={() => router.push("/forgot-password")}>
         <Text style={styles.link}>Olvidé mi contraseña</Text>
       </Pressable>
     </View>
