@@ -15,6 +15,32 @@ jest.mock("../lib/auth/biometric", () => ({
   setBiometricPreference: jest.fn(),
 }))
 
+const mockCaptcha = { auto: true, resets: 0, issued: 0 }
+
+jest.mock("../components/TurnstileCaptcha", () => {
+  const React = require("react")
+  const { View } = require("react-native")
+  return {
+    __esModule: true,
+    default: React.forwardRef(function MockCaptcha(
+      { onToken }: { onToken: (token: string | null) => void },
+      ref: React.Ref<{ reset: () => void }>
+    ) {
+      React.useImperativeHandle(ref, () => ({
+        reset: () => {
+          mockCaptcha.resets += 1
+          onToken(null)
+          if (mockCaptcha.auto) onToken("fresh-token-" + ++mockCaptcha.issued)
+        },
+      }))
+      React.useEffect(() => {
+        if (mockCaptcha.auto) onToken("test-token")
+      }, [onToken])
+      return <View testID="captcha" />
+    }),
+  }
+})
+
 jest.mock("expo-router", () => ({
   router: {
     replace: jest.fn(),
@@ -25,6 +51,9 @@ jest.mock("expo-router", () => ({
 describe("LoginScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockCaptcha.auto = true
+    mockCaptcha.resets = 0
+    mockCaptcha.issued = 0
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
     jest.spyOn(Alert, "alert").mockImplementation(() => {})
   })
@@ -41,7 +70,7 @@ describe("LoginScreen", () => {
     void fireEvent.press(getByText("Iniciar sesión"))
 
     await waitFor(() => {
-      expect(signIn).toHaveBeenCalledWith("socio@test.com", "supersecret")
+      expect(signIn).toHaveBeenCalledWith("socio@test.com", "supersecret", "test-token")
     })
   })
 
@@ -148,5 +177,35 @@ describe("LoginScreen", () => {
     await fireEvent.press(getByText("Olvidé mi contraseña"))
 
     expect(router.push).toHaveBeenCalledWith("/forgot-password")
+  })
+
+  it("does not call signIn until the captcha has produced a token", async () => {
+    mockCaptcha.auto = false
+    const signIn = jest.fn().mockResolvedValue({ error: null })
+    ;(useAuth as jest.Mock).mockReturnValue({ signIn })
+
+    const { getByPlaceholderText, getByText } = await render(<LoginScreen />)
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    await fireEvent.press(getByText("Iniciar sesión"))
+
+    expect(signIn).not.toHaveBeenCalled()
+  })
+
+  it("resets the captcha after a failed attempt so the next one uses a fresh token", async () => {
+    const signIn = jest.fn().mockResolvedValue({ error: "Email o contraseña incorrectos" })
+    ;(useAuth as jest.Mock).mockReturnValue({ signIn })
+
+    const { getByPlaceholderText, getByText, findByText } = await render(<LoginScreen />)
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "wrong")
+    await fireEvent.press(getByText("Iniciar sesión"))
+    await findByText("Email o contraseña incorrectos")
+
+    expect(mockCaptcha.resets).toBe(1)
+
+    await fireEvent.press(getByText("Iniciar sesión"))
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(2))
+    expect(signIn).toHaveBeenLastCalledWith("socio@test.com", "wrong", "fresh-token-1")
   })
 })

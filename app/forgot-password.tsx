@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from "react"
 import { View, TextInput, Text, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native"
 import { router } from "expo-router"
+import TurnstileCaptcha, { type TurnstileCaptchaHandle } from "../components/TurnstileCaptcha"
+import { canSubmitWithCaptcha } from "../lib/captcha/turnstile"
 import { supabase } from "../lib/supabase/client"
 import { colors, fonts } from "../constants/theme"
 import {
   OTP_LENGTH,
+  RESEND_COOLDOWN_SECONDS,
   RESET_MESSAGES,
   mapRequestError,
   mapUpdateError,
@@ -28,6 +31,8 @@ export default function ForgotPasswordScreen() {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [resending, setResending] = useState(false)
   const [resendMessage, setResendMessage] = useState<string | null>(null)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const captchaRef = useRef<TurnstileCaptchaHandle>(null)
 
   // True once verifyOtp succeeded: the code is consumed, so a retry after a
   // failed updateUser must not verify it again.
@@ -48,28 +53,41 @@ export default function ForgotPasswordScreen() {
       return
     }
 
+    if (captchaToken === null) return
     const target = email.trim()
     setLoading(true)
     setError(null)
-    const { error: requestError } = await supabase.auth.resetPasswordForEmail(target)
+    const { error: requestError } = await supabase.auth.resetPasswordForEmail(target, { captchaToken })
     setLoading(false)
 
     if (requestError) {
+      // Dev-only: the UI shows generic copy, so surface the real cause in Metro.
+      if (__DEV__) console.warn("[forgot-password] request failed:", requestError.code, requestError.message)
       setError(mapRequestError(requestError))
+      // Tokens are single-use: the retry needs a fresh one.
+      captchaRef.current?.reset()
       return
     }
 
+    // The token is consumed; the resend step asks for its own.
+    setCaptchaToken(null)
     setConfirmedEmail(target)
+    setSecondsLeft(RESEND_COOLDOWN_SECONDS)
     setSentAt(Date.now())
     setResendMessage(null)
   }
 
   async function handleResend() {
-    if (!confirmedEmail || resending || secondsLeft > 0) return
+    if (!confirmedEmail || resending || secondsLeft > 0 || captchaToken === null) return
     setResending(true)
     setResendMessage(null)
     // The outcome is not revealed, same as the web: the message is neutral.
-    await supabase.auth.resetPasswordForEmail(confirmedEmail)
+    const { error: resendError } = await supabase.auth.resetPasswordForEmail(confirmedEmail, { captchaToken })
+    if (resendError && __DEV__) {
+      console.warn("[forgot-password] resend failed:", resendError.code, resendError.message)
+    }
+    setCaptchaToken(null)
+    setSecondsLeft(RESEND_COOLDOWN_SECONDS)
     setSentAt(Date.now())
     setResendMessage(RESET_MESSAGES.resendSent)
     setResending(false)
@@ -122,9 +140,11 @@ export default function ForgotPasswordScreen() {
     setConfirm("")
     setError(null)
     setResendMessage(null)
+    setCaptchaToken(null)
     verified.current = false
   }
 
+  const canRequest = canSubmitWithCaptcha({ token: captchaToken, busy: loading })
   const submitDisabled = loading || otp.length !== OTP_LENGTH || !password || !confirm
 
   return (
@@ -150,10 +170,12 @@ export default function ForgotPasswordScreen() {
 
             {error && <Text style={styles.error}>{error}</Text>}
 
+            <TurnstileCaptcha ref={captchaRef} onToken={setCaptchaToken} />
+
             <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={[styles.button, !canRequest && styles.buttonDisabled]}
               onPress={handleRequestCode}
-              disabled={loading}
+              disabled={!canRequest}
             >
               <Text style={styles.buttonText}>{loading ? "Enviando..." : "Enviar código"}</Text>
             </Pressable>
@@ -219,9 +241,16 @@ export default function ForgotPasswordScreen() {
             ) : secondsLeft > 0 ? (
               <Text style={styles.info}>Reenviar en {secondsLeft}s</Text>
             ) : (
-              <Pressable onPress={handleResend}>
-                <Text style={styles.linkStrong}>Reenviar código</Text>
-              </Pressable>
+              <>
+                <TurnstileCaptcha onToken={setCaptchaToken} />
+                <Pressable
+                  onPress={handleResend}
+                  disabled={captchaToken === null}
+                  style={captchaToken === null && styles.buttonDisabled}
+                >
+                  <Text style={styles.linkStrong}>Reenviar código</Text>
+                </Pressable>
+              </>
             )}
 
             <Pressable onPress={handleRestart}>

@@ -8,7 +8,7 @@ type AuthContextValue = {
   session: Session | null
   loading: boolean
   membershipBlocked: boolean
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  signIn: (email: string, password: string, captchaToken: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -95,9 +95,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return { error: "Email o contraseña incorrectos" }
+  async function signIn(email: string, password: string, captchaToken: string) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken },
+    })
+    if (error) {
+      // Dev-only: the UI shows generic copy, so surface the real cause in Metro.
+      if (__DEV__) console.warn("[login] sign-in failed:", error.code, error.message)
+      return { error: "Email o contraseña incorrectos" }
+    }
     return { error: null }
   }
 

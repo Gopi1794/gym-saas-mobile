@@ -188,4 +188,48 @@ describe("AuthProvider", () => {
 
     consoleErrorSpy.mockRestore()
   })
+
+  describe("signIn", () => {
+    function ProbeWithSignIn({ onResult }: { onResult: (r: { error: string | null }) => void }) {
+      const { signIn } = useAuth()
+      return <Pressable testID="signin" onPress={async () => onResult(await signIn("a@b.com", "pw", "captcha-1"))} />
+    }
+
+    async function pressSignIn(onResult: (r: { error: string | null }) => void) {
+      ;(supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } })
+      const { getByTestId } = await render(
+        <AuthProvider>
+          <ProbeWithSignIn onResult={onResult} />
+        </AuthProvider>
+      )
+      await act(async () => {
+        await fireEvent.press(getByTestId("signin"))
+      })
+    }
+
+    it("forwards the captcha token to signInWithPassword", async () => {
+      ;(supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({ error: null })
+      const onResult = jest.fn()
+      await pressSignIn(onResult)
+
+      expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: "a@b.com",
+        password: "pw",
+        options: { captchaToken: "captcha-1" },
+      })
+      expect(onResult).toHaveBeenCalledWith({ error: null })
+    })
+
+    it("returns the generic credentials error when sign-in fails", async () => {
+      ;(supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+        error: { code: "captcha_failed", message: "captcha protection: request disallowed" },
+      })
+      const warn = jest.spyOn(console, "warn").mockImplementation(() => {})
+      const onResult = jest.fn()
+      await pressSignIn(onResult)
+
+      expect(onResult).toHaveBeenCalledWith({ error: "Email o contraseña incorrectos" })
+      warn.mockRestore()
+    })
+  })
 })

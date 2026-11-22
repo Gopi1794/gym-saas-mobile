@@ -14,6 +14,32 @@ jest.mock("../lib/supabase/client", () => ({
   },
 }))
 
+const mockCaptcha = { auto: true, resets: 0, issued: 0 }
+
+jest.mock("../components/TurnstileCaptcha", () => {
+  const React = require("react")
+  const { View } = require("react-native")
+  return {
+    __esModule: true,
+    default: React.forwardRef(function MockCaptcha(
+      { onToken }: { onToken: (token: string | null) => void },
+      ref: React.Ref<{ reset: () => void }>
+    ) {
+      React.useImperativeHandle(ref, () => ({
+        reset: () => {
+          mockCaptcha.resets += 1
+          onToken(null)
+          if (mockCaptcha.auto) onToken("fresh-token-" + ++mockCaptcha.issued)
+        },
+      }))
+      React.useEffect(() => {
+        if (mockCaptcha.auto) onToken("test-token")
+      }, [onToken])
+      return <View testID="captcha" />
+    }),
+  }
+})
+
 jest.mock("expo-router", () => ({
   router: { replace: jest.fn() },
 }))
@@ -44,6 +70,9 @@ async function fillResetForm(
 describe("ForgotPasswordScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockCaptcha.auto = true
+    mockCaptcha.resets = 0
+    mockCaptcha.issued = 0
     auth.resetPasswordForEmail.mockResolvedValue({ error: null })
     auth.verifyOtp.mockResolvedValue({ error: null })
     auth.updateUser.mockResolvedValue({ error: null })
@@ -54,8 +83,33 @@ describe("ForgotPasswordScreen", () => {
     await goToCodeStep(utils)
 
     expect(auth.resetPasswordForEmail).toHaveBeenCalledTimes(1)
-    expect(auth.resetPasswordForEmail).toHaveBeenCalledWith("socio@test.com")
+    expect(auth.resetPasswordForEmail).toHaveBeenCalledWith("socio@test.com", { captchaToken: "test-token" })
     expect(utils.getByText(/socio@test\.com/)).toBeTruthy()
+  })
+
+  it("does not request a code until the captcha has produced a token", async () => {
+    mockCaptcha.auto = false
+    const utils = await render(<ForgotPasswordScreen />)
+    await fireEvent.changeText(utils.getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.press(utils.getByText("Enviar código"))
+
+    expect(auth.resetPasswordForEmail).not.toHaveBeenCalled()
+    expect(utils.queryByText("Verificá el código")).toBeNull()
+  })
+
+  it("resets the captcha after a failed request so the retry uses a fresh token", async () => {
+    auth.resetPasswordForEmail.mockResolvedValueOnce({ error: { message: "boom" } })
+    const utils = await render(<ForgotPasswordScreen />)
+    await fireEvent.changeText(utils.getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.press(utils.getByText("Enviar código"))
+    await utils.findByText(/No pudimos enviar el email/)
+    expect(mockCaptcha.resets).toBe(1)
+
+    await fireEvent.press(utils.getByText("Enviar código"))
+    await waitFor(() => expect(auth.resetPasswordForEmail).toHaveBeenCalledTimes(2))
+    expect(auth.resetPasswordForEmail).toHaveBeenLastCalledWith("socio@test.com", {
+      captchaToken: "fresh-token-1",
+    })
   })
 
   it("validates the email before calling supabase", async () => {
@@ -172,6 +226,19 @@ describe("ForgotPasswordScreen", () => {
     beforeEach(() => jest.useFakeTimers())
     afterEach(() => jest.useRealTimers())
 
+    it("does not resend until a fresh captcha token exists", async () => {
+      const utils = await render(<ForgotPasswordScreen />)
+      await goToCodeStep(utils)
+      mockCaptcha.auto = false
+      await act(() => {
+        jest.advanceTimersByTime(60_000)
+      })
+
+      await fireEvent.press(await utils.findByText("Reenviar código"))
+
+      expect(auth.resetPasswordForEmail).toHaveBeenCalledTimes(1)
+    })
+
     it("blocks resending during the cooldown and re-enables it after 60 seconds", async () => {
       const utils = await render(<ForgotPasswordScreen />)
       await goToCodeStep(utils)
@@ -186,7 +253,7 @@ describe("ForgotPasswordScreen", () => {
       await fireEvent.press(await utils.findByText("Reenviar código"))
 
       await waitFor(() => expect(auth.resetPasswordForEmail).toHaveBeenCalledTimes(2))
-      expect(auth.resetPasswordForEmail).toHaveBeenLastCalledWith("socio@test.com")
+      expect(auth.resetPasswordForEmail).toHaveBeenLastCalledWith("socio@test.com", { captchaToken: "test-token" })
       expect(
         await utils.findByText("Si el email está registrado, te reenviamos el código.")
       ).toBeTruthy()
