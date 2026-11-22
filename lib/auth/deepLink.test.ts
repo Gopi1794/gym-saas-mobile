@@ -2,7 +2,7 @@ import { parseResetPasswordLink } from "./deepLink"
 
 describe("parseResetPasswordLink", () => {
   it("extracts tokens from a valid recovery link with query params", () => {
-    const url = "gymflowmember://reset-password?access_token=abc123&refresh_token=xyz789&type=recovery"
+    const url = "voltia://reset-password?access_token=abc123&refresh_token=xyz789&type=recovery"
     expect(parseResetPasswordLink(url)).toEqual({ accessToken: "abc123", refreshToken: "xyz789" })
   })
 
@@ -12,12 +12,12 @@ describe("parseResetPasswordLink", () => {
   })
 
   it("returns null when type is not recovery", () => {
-    const url = "gymflowmember://reset-password?access_token=abc123&refresh_token=xyz789&type=signup"
+    const url = "voltia://reset-password?access_token=abc123&refresh_token=xyz789&type=signup"
     expect(parseResetPasswordLink(url)).toBeNull()
   })
 
   it("returns null when tokens are missing", () => {
-    const url = "gymflowmember://reset-password?type=recovery"
+    const url = "voltia://reset-password?type=recovery"
     expect(parseResetPasswordLink(url)).toBeNull()
   })
 

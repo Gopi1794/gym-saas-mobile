@@ -27,7 +27,7 @@ describe("ResetPasswordScreen", () => {
 
   it("updates the password using the tokens parsed from the deep link", async () => {
     ;(Linking.useURL as jest.Mock).mockReturnValue(
-      "gymflowmember://reset-password?access_token=abc123&refresh_token=xyz789&type=recovery"
+      "voltia://reset-password?access_token=abc123&refresh_token=xyz789&type=recovery"
     )
 
     const { getByPlaceholderText, getByText } = render(<ResetPasswordScreen />)
@@ -45,7 +45,7 @@ describe("ResetPasswordScreen", () => {
   })
 
   it("shows an error and does not call supabase when the link has no valid tokens", async () => {
-    ;(Linking.useURL as jest.Mock).mockReturnValue("gymflowmember://reset-password")
+    ;(Linking.useURL as jest.Mock).mockReturnValue("voltia://reset-password")
 
     const { getByPlaceholderText, getByText, findByText } = render(<ResetPasswordScreen />)
 
@@ -58,7 +58,7 @@ describe("ResetPasswordScreen", () => {
 
   it("shows an error and does not call updateUser when setSession fails with an expired link", async () => {
     ;(Linking.useURL as jest.Mock).mockReturnValue(
-      "gymflowmember://reset-password?access_token=expired&refresh_token=expired&type=recovery"
+      "voltia://reset-password?access_token=expired&refresh_token=expired&type=recovery"
     )
     ;(supabase.auth.setSession as jest.Mock).mockResolvedValueOnce({
       error: { message: "Invalid or expired token" },
