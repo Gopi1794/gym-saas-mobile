@@ -74,7 +74,7 @@ describe("AuthProvider", () => {
     ;(supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } })
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
 
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -93,7 +93,7 @@ describe("AuthProvider", () => {
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(true)
     ;(authenticateWithBiometrics as jest.Mock).mockResolvedValue(false)
 
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -113,7 +113,7 @@ describe("AuthProvider", () => {
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
     mockProfileQuery({ role: "member", membership_expires_at: "2020-01-01T00:00:00.000Z" })
 
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -132,7 +132,7 @@ describe("AuthProvider", () => {
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
     mockProfileQuery({ role: "member", membership_expires_at: "2020-01-01T00:00:00.000Z" })
 
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider>
         <ProbeWithSignOut />
       </AuthProvider>
@@ -144,7 +144,7 @@ describe("AuthProvider", () => {
     })
 
     await act(async () => {
-      fireEvent.press(getByTestId("signout"))
+      await fireEvent.press(getByTestId("signout"))
     })
 
     await waitFor(() => {
@@ -163,7 +163,7 @@ describe("AuthProvider", () => {
 
     const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {})
 
-    const { unmount } = render(
+    const { unmount } = await render(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -173,7 +173,7 @@ describe("AuthProvider", () => {
       expect(pending.length).toBe(1)
     })
 
-    unmount()
+    await unmount()
 
     await act(async () => {
       pending[0].resolve()
