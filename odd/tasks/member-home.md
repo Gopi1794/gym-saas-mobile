@@ -24,7 +24,7 @@ Workout session runner, check-in QR, nutrition/water/weight, achievements, leade
 ## Tasks
 - [x] T1 Port date/activity helpers + data loader with tests (route: delegated writer, 2+ non-trivial files)
 - [x] T2 Home screen UI + sign out, with screen tests (route: delegated writer, same unit)
-- [ ] T3 Animated red/black gradient on login (route: delegated writer)
+- [x] T3 Animated red/black gradient on login (route: delegated writer)
 
 ## Acceptance
 - `npx jest` and `npx tsc --noEmit` clean; `npx expo export --platform android` bundles.
@@ -39,3 +39,11 @@ Workout session runner, check-in QR, nutrition/water/weight, achievements, leade
 - `npx expo export --platform android --output-dir <temp>`: bundled (1 android bundle, 3.3MB); temp dir deleted.
 - Files: lib/date-ar.ts (+hourAR, dayOfWeekAR, mondayOfWeekAR, optional `now` on todayAR/daysUntilAR), lib/activity-days.ts, lib/home/{memberHome,loadMemberHome}.ts, components/home/*, app/index.tsx (+ tests).
 - Not verified: device rendering in Expo Go (owner away).
+
+### T3 (delegated writer)
+- Added `expo-linear-gradient` (expo install) and `components/AnimatedGradientBackground.tsx` (+ test); used in `app/login.tsx` and `app/forgot-password.tsx` (one line each).
+- `npx expo install --check`: dependencies up to date.
+- `npx jest`: 16 suites, 147 tests, all passing.
+- `npx tsc --noEmit`: 0 errors.
+- `npx expo export --platform android --output-dir <temp>`: bundled; temp dir deleted.
+- Not verified: visual result and motion smoothness in Expo Go (owner away).

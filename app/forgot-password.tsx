@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { View, TextInput, Text, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native"
 import { router } from "expo-router"
+import AnimatedGradientBackground from "../components/AnimatedGradientBackground"
 import TurnstileCaptcha, { type TurnstileCaptchaHandle } from "../components/TurnstileCaptcha"
 import { canSubmitWithCaptcha } from "../lib/captcha/turnstile"
 import { supabase } from "../lib/supabase/client"
@@ -149,6 +150,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <AnimatedGradientBackground />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {confirmedEmail === null ? (
           <>
