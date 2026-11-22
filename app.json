@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "GymFlow Socios",
+    "name": "Voltia",
     "slug": "gym-saas-mobile",
-    "scheme": "gymflowmember",
+    "scheme": "voltia",
     "ios": {
-      "bundleIdentifier": "com.gymflow.member",
+      "bundleIdentifier": "com.voltia.app",
       "associatedDomains": [
         "applinks:voltia-fitness.com"
       ]
     },
     "android": {
-      "package": "com.gymflow.member",
+      "package": "com.voltia.app",
       "intentFilters": [
         {
           "action": "VIEW",
