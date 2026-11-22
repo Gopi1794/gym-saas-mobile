@@ -4,30 +4,10 @@
     "slug": "gym-saas-mobile",
     "scheme": "voltia",
     "ios": {
-      "bundleIdentifier": "com.voltia.app",
-      "associatedDomains": [
-        "applinks:voltia-fitness.com"
-      ]
+      "bundleIdentifier": "com.voltia.app"
     },
     "android": {
-      "package": "com.voltia.app",
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "voltia-fitness.com",
-              "pathPrefix": "/reset-password"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
-      ]
+      "package": "com.voltia.app"
     },
     "plugins": [
       "expo-router",

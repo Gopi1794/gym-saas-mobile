@@ -74,7 +74,7 @@ describe("AuthProvider", () => {
     ;(supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } })
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
 
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -93,7 +93,7 @@ describe("AuthProvider", () => {
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(true)
     ;(authenticateWithBiometrics as jest.Mock).mockResolvedValue(false)
 
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -113,7 +113,7 @@ describe("AuthProvider", () => {
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
     mockProfileQuery({ role: "member", membership_expires_at: "2020-01-01T00:00:00.000Z" })
 
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -132,7 +132,7 @@ describe("AuthProvider", () => {
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
     mockProfileQuery({ role: "member", membership_expires_at: "2020-01-01T00:00:00.000Z" })
 
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider>
         <ProbeWithSignOut />
       </AuthProvider>
@@ -144,7 +144,7 @@ describe("AuthProvider", () => {
     })
 
     await act(async () => {
-      fireEvent.press(getByTestId("signout"))
+      await fireEvent.press(getByTestId("signout"))
     })
 
     await waitFor(() => {
@@ -163,7 +163,7 @@ describe("AuthProvider", () => {
 
     const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {})
 
-    const { unmount } = render(
+    const { unmount } = await render(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -173,7 +173,7 @@ describe("AuthProvider", () => {
       expect(pending.length).toBe(1)
     })
 
-    unmount()
+    await unmount()
 
     await act(async () => {
       pending[0].resolve()
@@ -187,5 +187,49 @@ describe("AuthProvider", () => {
     expect(stateUpdateWarning).toBe(false)
 
     consoleErrorSpy.mockRestore()
+  })
+
+  describe("signIn", () => {
+    function ProbeWithSignIn({ onResult }: { onResult: (r: { error: string | null }) => void }) {
+      const { signIn } = useAuth()
+      return <Pressable testID="signin" onPress={async () => onResult(await signIn("a@b.com", "pw", "captcha-1"))} />
+    }
+
+    async function pressSignIn(onResult: (r: { error: string | null }) => void) {
+      ;(supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: null } })
+      const { getByTestId } = await render(
+        <AuthProvider>
+          <ProbeWithSignIn onResult={onResult} />
+        </AuthProvider>
+      )
+      await act(async () => {
+        await fireEvent.press(getByTestId("signin"))
+      })
+    }
+
+    it("forwards the captcha token to signInWithPassword", async () => {
+      ;(supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({ error: null })
+      const onResult = jest.fn()
+      await pressSignIn(onResult)
+
+      expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: "a@b.com",
+        password: "pw",
+        options: { captchaToken: "captcha-1" },
+      })
+      expect(onResult).toHaveBeenCalledWith({ error: null })
+    })
+
+    it("returns the generic credentials error when sign-in fails", async () => {
+      ;(supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+        error: { code: "captcha_failed", message: "captcha protection: request disallowed" },
+      })
+      const warn = jest.spyOn(console, "warn").mockImplementation(() => {})
+      const onResult = jest.fn()
+      await pressSignIn(onResult)
+
+      expect(onResult).toHaveBeenCalledWith({ error: "Email o contraseña incorrectos" })
+      warn.mockRestore()
+    })
   })
 })

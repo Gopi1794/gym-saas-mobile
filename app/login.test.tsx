@@ -1,7 +1,8 @@
 import React from "react"
-import { render, fireEvent, waitFor } from "@testing-library/react-native"
+import { render, fireEvent, waitFor, act } from "@testing-library/react-native"
 import { Alert } from "react-native"
 import LoginScreen from "./login"
+import { router } from "expo-router"
 import { useAuth } from "../lib/auth/AuthContext"
 import { getBiometricPreference, setBiometricPreference } from "../lib/auth/biometric"
 
@@ -14,23 +15,45 @@ jest.mock("../lib/auth/biometric", () => ({
   setBiometricPreference: jest.fn(),
 }))
 
+const mockCaptcha = { auto: true, resets: 0, issued: 0 }
+
+jest.mock("../components/TurnstileCaptcha", () => {
+  const React = require("react")
+  const { View } = require("react-native")
+  return {
+    __esModule: true,
+    default: React.forwardRef(function MockCaptcha(
+      { onToken }: { onToken: (token: string | null) => void },
+      ref: React.Ref<{ reset: () => void }>
+    ) {
+      React.useImperativeHandle(ref, () => ({
+        reset: () => {
+          mockCaptcha.resets += 1
+          onToken(null)
+          if (mockCaptcha.auto) onToken("fresh-token-" + ++mockCaptcha.issued)
+        },
+      }))
+      React.useEffect(() => {
+        if (mockCaptcha.auto) onToken("test-token")
+      }, [onToken])
+      return <View testID="captcha" />
+    }),
+  }
+})
+
 jest.mock("expo-router", () => ({
   router: {
     replace: jest.fn(),
-  },
-}))
-
-jest.mock("../lib/supabase/client", () => ({
-  supabase: {
-    auth: {
-      resetPasswordForEmail: jest.fn(),
-    },
+    push: jest.fn(),
   },
 }))
 
 describe("LoginScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockCaptcha.auto = true
+    mockCaptcha.resets = 0
+    mockCaptcha.issued = 0
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
     jest.spyOn(Alert, "alert").mockImplementation(() => {})
   })
@@ -39,14 +62,15 @@ describe("LoginScreen", () => {
     const signIn = jest.fn().mockResolvedValue({ error: null })
     ;(useAuth as jest.Mock).mockReturnValue({ signIn })
 
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />)
+    const { getByPlaceholderText, getByText } = await render(<LoginScreen />)
 
-    fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
-    fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
-    fireEvent.press(getByText("Iniciar sesión"))
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    // Not awaited: the submit handler stays pending until the Alert prompt is answered (or signIn resolves).
+    void fireEvent.press(getByText("Iniciar sesión"))
 
     await waitFor(() => {
-      expect(signIn).toHaveBeenCalledWith("socio@test.com", "supersecret")
+      expect(signIn).toHaveBeenCalledWith("socio@test.com", "supersecret", "test-token")
     })
   })
 
@@ -54,11 +78,11 @@ describe("LoginScreen", () => {
     const signIn = jest.fn().mockResolvedValue({ error: "Email o contraseña incorrectos" })
     ;(useAuth as jest.Mock).mockReturnValue({ signIn })
 
-    const { getByPlaceholderText, getByText, findByText } = render(<LoginScreen />)
+    const { getByPlaceholderText, getByText, findByText } = await render(<LoginScreen />)
 
-    fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
-    fireEvent.changeText(getByPlaceholderText("Contraseña"), "wrong")
-    fireEvent.press(getByText("Iniciar sesión"))
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "wrong")
+    await fireEvent.press(getByText("Iniciar sesión"))
 
     expect(await findByText("Email o contraseña incorrectos")).toBeTruthy()
   })
@@ -73,13 +97,16 @@ describe("LoginScreen", () => {
     )
     ;(useAuth as jest.Mock).mockReturnValue({ signIn })
 
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />)
-    fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
-    fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
-    fireEvent.press(getByText("Iniciar sesión"))
+    const { getByPlaceholderText, getByText, findByText } = await render(<LoginScreen />)
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    // Not awaited: the submit handler stays pending until the Alert prompt is answered (or signIn resolves).
+    void fireEvent.press(getByText("Iniciar sesión"))
 
-    expect(getByText("Ingresando...")).toBeTruthy()
-    resolveSignIn({ error: null })
+    expect(await findByText("Ingresando...")).toBeTruthy()
+    await act(async () => {
+      resolveSignIn({ error: null })
+    })
   })
 
   it("prompts to enable biometrics after a successful login when not already enabled", async () => {
@@ -87,11 +114,12 @@ describe("LoginScreen", () => {
     ;(useAuth as jest.Mock).mockReturnValue({ signIn })
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
 
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />)
+    const { getByPlaceholderText, getByText } = await render(<LoginScreen />)
 
-    fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
-    fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
-    fireEvent.press(getByText("Iniciar sesión"))
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    // Not awaited: the submit handler stays pending until the Alert prompt is answered (or signIn resolves).
+    void fireEvent.press(getByText("Iniciar sesión"))
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
@@ -107,11 +135,12 @@ describe("LoginScreen", () => {
     ;(useAuth as jest.Mock).mockReturnValue({ signIn })
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(false)
 
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />)
+    const { getByPlaceholderText, getByText } = await render(<LoginScreen />)
 
-    fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
-    fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
-    fireEvent.press(getByText("Iniciar sesión"))
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    // Not awaited: the submit handler stays pending until the Alert prompt is answered (or signIn resolves).
+    void fireEvent.press(getByText("Iniciar sesión"))
 
     await waitFor(() => expect(Alert.alert).toHaveBeenCalled())
 
@@ -128,16 +157,55 @@ describe("LoginScreen", () => {
     ;(useAuth as jest.Mock).mockReturnValue({ signIn })
     ;(getBiometricPreference as jest.Mock).mockResolvedValue(true)
 
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />)
+    const { getByPlaceholderText, getByText } = await render(<LoginScreen />)
 
-    fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
-    fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
-    fireEvent.press(getByText("Iniciar sesión"))
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    await fireEvent.press(getByText("Iniciar sesión"))
 
     await waitFor(() => {
       expect(getBiometricPreference).toHaveBeenCalled()
     })
 
     expect(Alert.alert).not.toHaveBeenCalled()
+  })
+
+  it("navigates to the forgot-password screen without calling supabase", async () => {
+    ;(useAuth as jest.Mock).mockReturnValue({ signIn: jest.fn() })
+
+    const { getByText } = await render(<LoginScreen />)
+    await fireEvent.press(getByText("Olvidé mi contraseña"))
+
+    expect(router.push).toHaveBeenCalledWith("/forgot-password")
+  })
+
+  it("does not call signIn until the captcha has produced a token", async () => {
+    mockCaptcha.auto = false
+    const signIn = jest.fn().mockResolvedValue({ error: null })
+    ;(useAuth as jest.Mock).mockReturnValue({ signIn })
+
+    const { getByPlaceholderText, getByText } = await render(<LoginScreen />)
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "supersecret")
+    await fireEvent.press(getByText("Iniciar sesión"))
+
+    expect(signIn).not.toHaveBeenCalled()
+  })
+
+  it("resets the captcha after a failed attempt so the next one uses a fresh token", async () => {
+    const signIn = jest.fn().mockResolvedValue({ error: "Email o contraseña incorrectos" })
+    ;(useAuth as jest.Mock).mockReturnValue({ signIn })
+
+    const { getByPlaceholderText, getByText, findByText } = await render(<LoginScreen />)
+    await fireEvent.changeText(getByPlaceholderText("Email"), "socio@test.com")
+    await fireEvent.changeText(getByPlaceholderText("Contraseña"), "wrong")
+    await fireEvent.press(getByText("Iniciar sesión"))
+    await findByText("Email o contraseña incorrectos")
+
+    expect(mockCaptcha.resets).toBe(1)
+
+    await fireEvent.press(getByText("Iniciar sesión"))
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(2))
+    expect(signIn).toHaveBeenLastCalledWith("socio@test.com", "wrong", "fresh-token-1")
   })
 })

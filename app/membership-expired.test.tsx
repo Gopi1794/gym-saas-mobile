@@ -10,13 +10,13 @@ jest.mock("../lib/auth/AuthContext", () => ({
 describe("MembershipExpiredScreen", () => {
   beforeEach(() => jest.clearAllMocks())
 
-  it("calls signOut when the sign-out button is pressed", () => {
+  it("calls signOut when the sign-out button is pressed", async () => {
     const signOut = jest.fn()
     ;(useAuth as jest.Mock).mockReturnValue({ signOut })
 
-    const { getByText } = render(<MembershipExpiredScreen />)
+    const { getByText } = await render(<MembershipExpiredScreen />)
 
-    fireEvent.press(getByText("Cerrar sesión"))
+    await fireEvent.press(getByText("Cerrar sesión"))
 
     expect(signOut).toHaveBeenCalled()
   })
