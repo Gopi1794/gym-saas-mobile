@@ -3,6 +3,7 @@ import { View, TextInput, Text, Pressable, StyleSheet, Alert } from "react-nativ
 import { router } from "expo-router"
 import { useAuth } from "../lib/auth/AuthContext"
 import { colors, fonts } from "../constants/theme"
+import AnimatedGradientBackground from "../components/AnimatedGradientBackground"
 import TurnstileCaptcha, { type TurnstileCaptchaHandle } from "../components/TurnstileCaptcha"
 import { canSubmitWithCaptcha } from "../lib/captcha/turnstile"
 import { getBiometricPreference, setBiometricPreference } from "../lib/auth/biometric"
@@ -60,6 +61,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+      <AnimatedGradientBackground />
       <Text style={styles.title}>Voltia</Text>
 
       <TextInput

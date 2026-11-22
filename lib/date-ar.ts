@@ -22,8 +22,37 @@ export function dayAR(instant: Date | string): string {
 }
 
 /** Today's date (YYYY-MM-DD) in Argentina. */
-export function todayAR(): string {
-  return dayAR(new Date())
+export function todayAR(now: Date = new Date()): string {
+  return dayAR(now)
+}
+
+/** Current hour (0-23) in Argentina. Locale-independent (hourCycle h23, never "24"). */
+export function hourAR(now: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    hour: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(now)
+  return Number(parts.find((p) => p.type === "hour")?.value ?? 0)
+}
+
+/** Day of week in Argentina (0 = Sunday ... 6 = Saturday), like JS Date.getDay(). */
+export function dayOfWeekAR(now: Date = new Date()): number {
+  return new Date(`${todayAR(now)}T12:00:00Z`).getUTCDay()
+}
+
+/**
+ * Monday of the current Argentina week at 00:00 AR time, as a UTC ISO string
+ * ready for Supabase .gte() on timestamptz columns. Argentina has no DST
+ * (fixed UTC-3), so the offset is constant; the day shift uses UTC setters so
+ * it does not depend on the device time zone.
+ */
+export function mondayOfWeekAR(now: Date = new Date()): string {
+  const jsDay = dayOfWeekAR(now)
+  const offset = jsDay === 0 ? -6 : 1 - jsDay
+  const d = new Date(`${todayAR(now)}T00:00:00-03:00`)
+  d.setUTCDate(d.getUTCDate() + offset)
+  return d.toISOString()
 }
 
 /**
@@ -35,9 +64,9 @@ export function todayAR(): string {
  * converting that instant to Argentina time would move it to the previous
  * day. Same rule as the web's daysUntilAR.
  */
-export function daysUntilAR(expiresAt: string): number {
+export function daysUntilAR(expiresAt: string, now: Date = new Date()): number {
   const expiresDay = expiresAt.split("T")[0]
   return Math.round(
-    (new Date(`${expiresDay}T12:00:00Z`).getTime() - new Date(`${todayAR()}T12:00:00Z`).getTime()) / 86_400_000,
+    (new Date(`${expiresDay}T12:00:00Z`).getTime() - new Date(`${todayAR(now)}T12:00:00Z`).getTime()) / 86_400_000,
   )
 }
